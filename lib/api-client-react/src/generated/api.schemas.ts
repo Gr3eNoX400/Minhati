@@ -8,3 +8,25 @@
 export interface HealthStatus {
   status: string;
 }
+
+export interface GenerateCodeRequest {
+  /** National Identification Number (18 digits) */
+  nin: string;
+  /** NNI / Wassit number */
+  nni: string;
+}
+
+export interface GenerateCodeResponse {
+  /** 6-digit verification code */
+  code: string;
+  message: string;
+}
+
+export interface VerificationStatusResponse {
+  verified: boolean;
+  chatId?: string | null;
+}
+
+export type CheckVerificationStatusParams = {
+  nin: string;
+};

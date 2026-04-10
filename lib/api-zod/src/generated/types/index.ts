@@ -6,4 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./checkVerificationStatusParams";
+export * from "./generateCodeRequest";
+export * from "./generateCodeResponse";
 export * from "./healthStatus";
+export * from "./verificationStatusResponse";

@@ -14,3 +14,28 @@ import * as zod from "zod";
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
 });
+
+/**
+ * @summary Generate a 6-digit Telegram verification code
+ */
+export const GenerateVerificationCodeBody = zod.object({
+  nin: zod.string().describe("National Identification Number (18 digits)"),
+  nni: zod.string().describe("NNI \/ Wassit number"),
+});
+
+export const GenerateVerificationCodeResponse = zod.object({
+  code: zod.string().describe("6-digit verification code"),
+  message: zod.string(),
+});
+
+/**
+ * @summary Check if NIN has been verified via Telegram
+ */
+export const CheckVerificationStatusQueryParams = zod.object({
+  nin: zod.coerce.string(),
+});
+
+export const CheckVerificationStatusResponse = zod.object({
+  verified: zod.boolean(),
+  chatId: zod.string().nullish(),
+});

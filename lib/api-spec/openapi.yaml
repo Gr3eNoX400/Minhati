@@ -10,6 +10,10 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication operations
+  - name: telegram
+    description: Telegram verification operations
 paths:
   /healthz:
     get:
@@ -24,6 +28,45 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/generate-code:
+    post:
+      operationId: generateVerificationCode
+      tags: [auth]
+      summary: Generate a 6-digit Telegram verification code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateCodeRequest"
+      responses:
+        "200":
+          description: Code generated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenerateCodeResponse"
+
+  /auth/verify-status:
+    get:
+      operationId: checkVerificationStatus
+      tags: [auth]
+      summary: Check if NIN has been verified via Telegram
+      parameters:
+        - name: nin
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Verification status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerificationStatusResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +77,38 @@ components:
       required:
         - status
 
+    GenerateCodeRequest:
+      type: object
+      properties:
+        nin:
+          type: string
+          description: National Identification Number (18 digits)
+        nni:
+          type: string
+          description: NNI / Wassit number
+      required:
+        - nin
+        - nni
+
+    GenerateCodeResponse:
+      type: object
+      properties:
+        code:
+          type: string
+          description: 6-digit verification code
+        message:
+          type: string
+      required:
+        - code
+        - message
+
+    VerificationStatusResponse:
+      type: object
+      properties:
+        verified:
+          type: boolean
+        chatId:
+          type: string
+          nullable: true
+      required:
+        - verified

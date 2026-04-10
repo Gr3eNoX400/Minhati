@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Minhati PWA"
+version = "1.0.0"
+id = "artifacts/minhati"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24745
+
+[services.development]
+run = "pnpm --filter @workspace/minhati run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/minhati", "run", "build" ]
+publicDir = "artifacts/minhati/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24745"
+BASE_PATH = "/"
