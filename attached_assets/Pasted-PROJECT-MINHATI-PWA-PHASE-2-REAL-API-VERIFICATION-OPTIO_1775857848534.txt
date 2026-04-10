@@ -1,0 +1,33 @@
+PROJECT: MINHATI PWA - PHASE 2 (REAL API VERIFICATION & OPTIONAL TELEGRAM)
+Role: Senior Full-Stack Developer. Build upon the existing Phase 1 code.
+
+STEP 1: REAL ANEM API VERIFICATION (Backend Proxy)
+- Create a new backend route: `POST /api/verify-anem`
+- This route must use `axios` to fetch data from the real API:
+  `GET https://ac-controle.anem.dz/AllocationChomage/api/validateCandidate/query?wassitNumber={nni}&identityDocNumber={nin}`
+- IMPORTANT HEADERS for the axios request:
+  `Referer: https://minha.anem.dz/`
+  `Accept: application/json`
+- Logic: When the user submits the Login form (NIN & NNI), the frontend calls `/api/verify-anem`. 
+- If the ANEM API returns valid data (e.g., a 200 OK with `demandeurId` or `validInput: true`), proceed.
+- If the API returns an error or empty data (invalid user), show a frontend error message: "المعلومات المدخلة غير صحيحة أو غير مسجلة في وكالة التشغيل" and STOP the login process.
+
+STEP 2: MAKE TELEGRAM OPTIONAL (Frontend)
+- Modify the Telegram verification screen. 
+- Add a prominent "تخطي" (Skip) button below the code instruction.
+- If the user clicks "تخطي", immediately bypass Telegram polling and redirect them to the Dashboard.
+
+STEP 3: DASHBOARD DATA EXTRACTION & LOGIC
+- Pass the successful ANEM API JSON response to the Dashboard.
+- Extract and display the user's real information on the Dashboard:
+  1. Full Name: `detailsAllocation.nomAr` + " " + `detailsAllocation.prenomAr`.
+  2. Agency: `detailsAllocation.intituleAlemAr`.
+- Implement the Status Logic based on the JSON:
+  - SCENARIO A (Suspended): If `eligible: true` AND `detailsAllocation.etat === 2`, show an Orange Warning card saying "المنحة معلقة". Display the reason using `detailsAllocation.motifAr`.
+  - SCENARIO B (Rejected): If `eligible: false`, find the first item in the `controls` array where `result === false`, and show a Red Error card saying "مرفوض" with the reason (e.g., `name` of the failed control).
+  - SCENARIO C (Eligible): If `eligible: true` AND `detailsAllocation.etat !== 2`, show a Green Success card saying "مؤهل ومقبول".
+
+STEP 4: GITHUB SYNC
+- Commit and push all updates to the GitHub repository (`Gr3eNoX400/Minhati`) automatically.
+
+EXECUTE PHASE 2 NOW. Ensure the login is strictly gated by the real ANEM API.

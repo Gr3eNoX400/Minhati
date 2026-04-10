@@ -10,14 +10,11 @@ export interface HealthStatus {
 }
 
 export interface GenerateCodeRequest {
-  /** National Identification Number (18 digits) */
   nin: string;
-  /** NNI / Wassit number */
   nni: string;
 }
 
 export interface GenerateCodeResponse {
-  /** 6-digit verification code */
   code: string;
   message: string;
 }
@@ -25,6 +22,22 @@ export interface GenerateCodeResponse {
 export interface VerificationStatusResponse {
   verified: boolean;
   chatId?: string | null;
+}
+
+export interface VerifyAnemRequest {
+  nin: string;
+  nni: string;
+}
+
+export type VerifyAnemResponseData = { [key: string]: unknown } | null;
+
+export interface VerifyAnemResponse {
+  valid: boolean;
+  data?: VerifyAnemResponseData;
+}
+
+export interface ErrorResponse {
+  error: string;
 }
 
 export type CheckVerificationStatusParams = {

@@ -6,7 +6,4 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface GenerateCodeResponse {
-  code: string;
-  message: string;
-}
+export type VerifyAnemResponseData = { [key: string]: unknown } | null;

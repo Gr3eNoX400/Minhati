@@ -1,7 +1,22 @@
 import { useState } from "react";
 
+const BASE = import.meta.env.BASE_URL;
+
+interface AnemData {
+  eligible?: boolean;
+  detailsAllocation?: {
+    nomAr?: string;
+    prenomAr?: string;
+    intituleAlemAr?: string;
+    etat?: number;
+    motifAr?: string;
+  };
+  controls?: Array<{ name?: string; result?: boolean }>;
+  [key: string]: unknown;
+}
+
 interface LoginProps {
-  onLogin: (nin: string, nni: string) => void;
+  onLogin: (nin: string, nni: string, anemData: AnemData) => void;
 }
 
 export default function Login({ onLogin }: LoginProps) {
@@ -9,13 +24,16 @@ export default function Login({ onLogin }: LoginProps) {
   const [nni, setNni] = useState("");
   const [ninError, setNinError] = useState("");
   const [nniError, setNniError] = useState("");
+  const [apiError, setApiError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const validateAndSubmit = (e: React.FormEvent) => {
+  const validateAndSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     let valid = true;
 
     setNinError("");
     setNniError("");
+    setApiError("");
 
     if (!/^\d{18}$/.test(nin)) {
       setNinError("رقم التعريف الوطني يجب أن يتكون من 18 رقماً بالضبط");
@@ -27,10 +45,33 @@ export default function Login({ onLogin }: LoginProps) {
       valid = false;
     }
 
-    if (valid) {
+    if (!valid) return;
+
+    setLoading(true);
+
+    try {
+      const res = await fetch(`${BASE}api/verify-anem`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nin, nni }),
+      });
+
+      const data = await res.json() as { valid?: boolean; data?: AnemData; error?: string };
+
+      if (!res.ok || !data.valid) {
+        setApiError(data.error ?? "المعلومات المدخلة غير صحيحة أو غير مسجلة في وكالة التشغيل");
+        return;
+      }
+
       localStorage.setItem("minhati_nin", nin);
       localStorage.setItem("minhati_nni", nni);
-      onLogin(nin, nni);
+      localStorage.setItem("minhati_anem_data", JSON.stringify(data.data ?? {}));
+
+      onLogin(nin, nni, data.data ?? {});
+    } catch {
+      setApiError("تعذر الاتصال بالخادم. يرجى التحقق من اتصالك بالإنترنت.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -50,6 +91,18 @@ export default function Login({ onLogin }: LoginProps) {
 
         <div className="bg-card border border-card-border rounded-xl p-8 shadow-xl">
           <form onSubmit={validateAndSubmit} className="space-y-6" noValidate>
+
+            {apiError && (
+              <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4 text-right">
+                <div className="flex items-start gap-3">
+                  <p className="text-destructive text-sm font-medium leading-relaxed flex-1">{apiError}</p>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-2">
               <label className="block text-sm font-semibold text-foreground" htmlFor="nin">
                 رقم التعريف الوطني (NIN)
@@ -65,6 +118,7 @@ export default function Login({ onLogin }: LoginProps) {
                   const val = e.target.value.replace(/\D/g, "");
                   setNin(val);
                   if (ninError) setNinError("");
+                  if (apiError) setApiError("");
                 }}
                 placeholder="أدخل 18 رقماً"
                 className={`w-full px-4 py-3 rounded-lg bg-background border text-foreground placeholder-muted-foreground text-right font-mono text-lg tracking-widest focus:outline-none focus:ring-2 focus:ring-primary transition-all duration-150 ${
@@ -72,12 +126,7 @@ export default function Login({ onLogin }: LoginProps) {
                 }`}
               />
               {ninError && (
-                <p className="text-destructive text-sm font-medium flex items-center gap-1 justify-end">
-                  <span>{ninError}</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </p>
+                <p className="text-destructive text-sm font-medium text-right">{ninError}</p>
               )}
               <p className="text-muted-foreground text-xs text-right">
                 {nin.length}/18 رقم
@@ -95,6 +144,7 @@ export default function Login({ onLogin }: LoginProps) {
                 onChange={(e) => {
                   setNni(e.target.value);
                   if (nniError) setNniError("");
+                  if (apiError) setApiError("");
                 }}
                 placeholder="أدخل رقم الوسيط"
                 className={`w-full px-4 py-3 rounded-lg bg-background border text-foreground placeholder-muted-foreground text-right focus:outline-none focus:ring-2 focus:ring-primary transition-all duration-150 ${
@@ -102,20 +152,23 @@ export default function Login({ onLogin }: LoginProps) {
                 }`}
               />
               {nniError && (
-                <p className="text-destructive text-sm font-medium flex items-center gap-1 justify-end">
-                  <span>{nniError}</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </p>
+                <p className="text-destructive text-sm font-medium text-right">{nniError}</p>
               )}
             </div>
 
             <button
               type="submit"
-              className="w-full py-3 px-6 bg-primary text-primary-foreground font-bold text-lg rounded-lg hover:opacity-90 active:opacity-80 transition-all duration-150 shadow-lg shadow-primary/30 mt-2"
+              disabled={loading}
+              className="w-full py-3 px-6 bg-primary text-primary-foreground font-bold text-lg rounded-lg hover:opacity-90 active:opacity-80 transition-all duration-150 shadow-lg shadow-primary/30 mt-2 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-3"
             >
-              تسجيل الدخول
+              {loading ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                  جاري التحقق...
+                </>
+              ) : (
+                "تسجيل الدخول"
+              )}
             </button>
           </form>
         </div>

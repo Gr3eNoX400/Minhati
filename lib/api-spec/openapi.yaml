@@ -12,15 +12,14 @@ tags:
     description: Health operations
   - name: auth
     description: Authentication operations
-  - name: telegram
-    description: Telegram verification operations
+  - name: anem
+    description: ANEM API operations
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -67,6 +66,37 @@ paths:
               schema:
                 $ref: "#/components/schemas/VerificationStatusResponse"
 
+  /verify-anem:
+    post:
+      operationId: verifyAnem
+      tags: [anem]
+      summary: Verify candidate against ANEM API
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyAnemRequest"
+      responses:
+        "200":
+          description: ANEM verification result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerifyAnemResponse"
+        "400":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: ANEM API error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -82,10 +112,8 @@ components:
       properties:
         nin:
           type: string
-          description: National Identification Number (18 digits)
         nni:
           type: string
-          description: NNI / Wassit number
       required:
         - nin
         - nni
@@ -95,7 +123,6 @@ components:
       properties:
         code:
           type: string
-          description: 6-digit verification code
         message:
           type: string
       required:
@@ -112,3 +139,33 @@ components:
           nullable: true
       required:
         - verified
+
+    VerifyAnemRequest:
+      type: object
+      properties:
+        nin:
+          type: string
+        nni:
+          type: string
+      required:
+        - nin
+        - nni
+
+    VerifyAnemResponse:
+      type: object
+      properties:
+        valid:
+          type: boolean
+        data:
+          type: object
+          nullable: true
+      required:
+        - valid
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error

@@ -8,7 +8,6 @@
 import * as zod from "zod";
 
 /**
- * Returns server health status
  * @summary Health check
  */
 export const HealthCheckResponse = zod.object({
@@ -19,12 +18,12 @@ export const HealthCheckResponse = zod.object({
  * @summary Generate a 6-digit Telegram verification code
  */
 export const GenerateVerificationCodeBody = zod.object({
-  nin: zod.string().describe("National Identification Number (18 digits)"),
-  nni: zod.string().describe("NNI \/ Wassit number"),
+  nin: zod.string(),
+  nni: zod.string(),
 });
 
 export const GenerateVerificationCodeResponse = zod.object({
-  code: zod.string().describe("6-digit verification code"),
+  code: zod.string(),
   message: zod.string(),
 });
 
@@ -38,4 +37,17 @@ export const CheckVerificationStatusQueryParams = zod.object({
 export const CheckVerificationStatusResponse = zod.object({
   verified: zod.boolean(),
   chatId: zod.string().nullish(),
+});
+
+/**
+ * @summary Verify candidate against ANEM API
+ */
+export const VerifyAnemBody = zod.object({
+  nin: zod.string(),
+  nni: zod.string(),
+});
+
+export const VerifyAnemResponse = zod.object({
+  valid: zod.boolean(),
+  data: zod.object({}).passthrough().nullish(),
 });

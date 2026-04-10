@@ -7,7 +7,11 @@
  */
 
 export * from "./checkVerificationStatusParams";
+export * from "./errorResponse";
 export * from "./generateCodeRequest";
 export * from "./generateCodeResponse";
 export * from "./healthStatus";
 export * from "./verificationStatusResponse";
+export * from "./verifyAnemRequest";
+export * from "./verifyAnemResponse";
+export * from "./verifyAnemResponseData";

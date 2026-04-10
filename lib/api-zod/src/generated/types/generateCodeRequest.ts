@@ -7,8 +7,6 @@
  */
 
 export interface GenerateCodeRequest {
-  /** National Identification Number (18 digits) */
   nin: string;
-  /** NNI / Wassit number */
   nni: string;
 }
