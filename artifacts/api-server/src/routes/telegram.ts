@@ -17,7 +17,7 @@ interface UserRecord {
 }
 
 const pendingVerifications = new Map<string, UserRecord>();
-const verifiedUsers = new Map<string, UserRecord>();
+export const verifiedUsers = new Map<string, UserRecord>();
 
 bot.on("message", async (msg) => {
   const text = msg.text?.trim() ?? "";
@@ -40,7 +40,6 @@ bot.on("message", async (msg) => {
       found.verified = true;
       verifiedUsers.set(found.nin, found);
       pendingVerifications.delete(foundCode);
-
       await bot.sendMessage(chatId, "تم تفعيل التنبيهات بنجاح! ✅");
     } else {
       await bot.sendMessage(chatId, "الرمز غير صحيح أو منتهي الصلاحية. يرجى المحاولة مرة أخرى.");
@@ -55,46 +54,46 @@ router.post("/generate-code", (req, res) => {
     res.status(400).json({ error: "رقم التعريف الوطني يجب أن يكون 18 رقماً" });
     return;
   }
-
   if (!nni) {
     res.status(400).json({ error: "رقم الوسيط مطلوب" });
     return;
   }
 
   const code = String(Math.floor(100000 + Math.random() * 900000));
-
-  const record: UserRecord = {
-    nin,
-    nni,
-    code,
-    verified: false,
-    createdAt: Date.now(),
-  };
-
+  const record: UserRecord = { nin, nni, code, verified: false, createdAt: Date.now() };
   pendingVerifications.set(code, record);
-
-  setTimeout(() => {
-    pendingVerifications.delete(code);
-  }, 10 * 60 * 1000);
+  setTimeout(() => { pendingVerifications.delete(code); }, 10 * 60 * 1000);
 
   res.json({ code, message: "تم إنشاء رمز التحقق بنجاح" });
 });
 
 router.get("/verify-status", (req, res) => {
   const nin = req.query["nin"] as string;
+  if (!nin) { res.status(400).json({ error: "رقم التعريف الوطني مطلوب" }); return; }
+  const record = verifiedUsers.get(nin);
+  res.json({ verified: !!record, chatId: record?.chatId ?? null });
+});
 
-  if (!nin) {
-    res.status(400).json({ error: "رقم التعريف الوطني مطلوب" });
+router.post("/notify", async (req, res) => {
+  const { nin, message } = req.body as { nin?: string; message?: string };
+
+  if (!nin) { res.status(400).json({ error: "رقم التعريف الوطني مطلوب" }); return; }
+
+  const record = verifiedUsers.get(nin);
+  if (!record?.chatId) {
+    res.status(404).json({ error: "لم يتم ربط حساب تيليغرام لهذا المستخدم" });
     return;
   }
 
-  const record = verifiedUsers.get(nin);
-
-  if (record) {
-    res.json({ verified: true, chatId: record.chatId ?? null });
-  } else {
-    res.json({ verified: false, chatId: null });
+  const text = message ?? `تنبيه: تم تفعيل مراقبة حالة منحتك لحساب ${nin.slice(0, 4)}****`;
+  try {
+    await bot.sendMessage(record.chatId, text);
+    res.json({ sent: true });
+  } catch (err) {
+    req.log?.error({ err }, "Failed to send Telegram notification");
+    res.status(500).json({ error: "فشل إرسال الإشعار عبر تيليغرام" });
   }
 });
 
+export { bot };
 export default router;
