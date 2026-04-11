@@ -12,17 +12,16 @@ Minhati is an unofficial helper PWA for Algerian job seekers to track their ANEM
 - **TypeScript version**: 5.9
 - **API framework**: Express 5
 - **Frontend**: React + Vite + Tailwind CSS v4
-- **Database**: PostgreSQL + Drizzle ORM
-- **Validation**: Zod (`zod/v4`), `drizzle-zod`
-- **API codegen**: Orval (from OpenAPI spec)
-- **Build**: esbuild (CJS bundle)
 - **Telegram**: node-telegram-bot-api
+- **Build**: esbuild
 
 ## Theme
 
 - **Direction**: RTL (Right-to-Left), Arabic language
 - **Font**: Tajawal (Google Fonts)
-- **Colors**: Dark Blue (#1E3A8A / `222 47% 11%`) and Gold (#F59E0B / `38 92% 50%`)
+- **Background**: Dark Blue `222 47% 11%`
+- **Primary/Gold**: `38 92% 50%`
+- **Cards**: Glassmorphism (`bg-white/5 backdrop-blur-md border border-white/10`)
 
 ## Architecture
 
@@ -30,27 +29,45 @@ Minhati is an unofficial helper PWA for Algerian job seekers to track their ANEM
 
 Pages/Screens:
 - `DisclaimerModal` — First-visit disclaimer, saves consent to localStorage
-- `Login` — NIN (18-digit strict validation) + NNI input, saves to localStorage
-- `TelegramVerification` — Shows 6-digit code, polls backend for verification
-- `Dashboard` — Blank dashboard shown after Telegram verification
+- `Login` — NIN (18-digit strict) + NNI input. Always shows "وضع المعاينة" button to skip directly to mock dashboard. URL shortcut: `/?preview=true`
+- `TelegramVerification` — 6-digit code display, auto-polls backend, "Skip" button
+- `Dashboard` — Full glassmorphism dashboard with bottom nav (Home / Notifications / Profile)
+
+Dashboard features:
+- User info card (name, agency, masked NIN)
+- Status card: green (eligible), orange (suspended + motif), red (rejected)
+- Telegram notify toggle (sends message to linked chat_id)
+- Action buttons: "تجديد المنحة" + "تغيير رقم الهاتف" with loading → success states
+- Controls checklist (ANEM verification checkpoints)
+- Profile tab: CCP payment date calculator (last digit 0-3→26th, 4-6→27th, 7-9→28th)
+- Notifications tab: placeholder
 
 ### Backend (`artifacts/api-server`)
 
 Routes:
-- `POST /api/auth/generate-code` — Generates a 6-digit verification code linked to NIN/NNI
-- `GET /api/auth/verify-status?nin=...` — Checks if NIN has been verified via Telegram
-- Telegram bot polls for incoming messages and links chat_id to NIN on 6-digit code match
+- `POST /api/verify-anem` — Calls ANEM API with browser headers + SSL bypass. Returns `code: "TIMEOUT"` or `"CONNECTION_FAILED"` on failure.
+- `POST /api/auth/generate-code` — Generates 6-digit Telegram verification code
+- `GET /api/auth/verify-status?nin=...` — Checks if NIN verified via Telegram
+- `POST /api/auth/notify` — Sends Telegram message to linked chat_id
 
-## Phase 1 Features
+## Mock Data (Gartoufa Djamaleddine)
 
-- [x] Disclaimer modal with localStorage consent
-- [x] Login with strict 18-digit NIN validation
-- [x] NNI input field
-- [x] 6-digit verification code generation
-- [x] Telegram bot integration (@Minhatiibot)
-- [x] Auto-polling frontend for verification status
-- [x] Dashboard page post-verification
-- [x] GitHub sync
+```json
+{
+  "nin": "109991165003180008",
+  "name": "جمال الدين قرطوفة",
+  "agency": "الوكالة المحلية راس الواد",
+  "etat": 2,
+  "motif": "الغياب في التكوين"
+}
+```
+
+Access via `/?preview=true` URL.
+
+## Telegram Bot
+
+- Handle: `@Minhatiibot`
+- Token: stored in `artifacts/api-server/src/routes/telegram.ts`
 
 ## GitHub Repository
 
@@ -58,12 +75,12 @@ Routes:
 
 ## Key Commands
 
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas
-- `pnpm --filter @workspace/api-server run dev` — run API server locally
-- `pnpm --filter @workspace/minhati run dev` — run frontend locally
+- `pnpm --filter @workspace/api-server run dev` — run API server
+- `pnpm --filter @workspace/minhati run dev` — run frontend
+- `pnpm --filter @workspace/api-server run build` — build API
 
-## Pending (Phase 2+)
+## ANEM API
 
-- ANEM API integration
-- Employment file status display
-- Push notifications via Telegram when status changes
+URL: `https://ac-controle.anem.dz/AllocationChomage/api/validateCandidate/query`  
+Params: `wassitNumber`, `identityDocNumber`  
+Note: Replit IPs are blocked by ANEM — always times out. Frontend falls back to mock mode.

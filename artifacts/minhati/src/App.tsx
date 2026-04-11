@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import DisclaimerModal from "@/pages/DisclaimerModal";
-import Login from "@/pages/Login";
+import Login, { GARTOUFA_DATA } from "@/pages/Login";
 import TelegramVerification from "@/pages/TelegramVerification";
 import Dashboard from "@/pages/Dashboard";
 
@@ -41,6 +41,21 @@ function App() {
   }, []);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("preview") === "true") {
+      const mockNin = "109991165003180008";
+      localStorage.setItem("minhati_disclaimer_accepted", "true");
+      localStorage.setItem("minhati_nin", mockNin);
+      localStorage.setItem("minhati_nni", "MOCK-NNI");
+      localStorage.setItem("minhati_anem_data", JSON.stringify(GARTOUFA_DATA));
+      localStorage.setItem("minhati_verified", "skipped");
+      setNin(mockNin);
+      setAnemData(GARTOUFA_DATA);
+      setTelegramLinked(false);
+      setScreen("dashboard");
+      return;
+    }
+
     const disclaimerAccepted = localStorage.getItem("minhati_disclaimer_accepted");
     if (!disclaimerAccepted) {
       setScreen("disclaimer");
@@ -85,11 +100,17 @@ function App() {
     }
   }, [loadSavedState]);
 
-  const handleLogin = useCallback((loginNin: string, loginNni: string, data: AnemData) => {
+  const handleLogin = useCallback((loginNin: string, loginNni: string, data: AnemData, skipTelegram?: boolean) => {
     setNin(loginNin);
     setNni(loginNni);
     setAnemData(data);
-    setScreen("telegram");
+    if (skipTelegram) {
+      localStorage.setItem("minhati_verified", "skipped");
+      setTelegramLinked(false);
+      setScreen("dashboard");
+    } else {
+      setScreen("telegram");
+    }
   }, []);
 
   const handleVerified = useCallback(() => {

@@ -35,7 +35,7 @@ export interface AnemData {
 }
 
 interface LoginProps {
-  onLogin: (nin: string, nni: string, anemData: AnemData) => void;
+  onLogin: (nin: string, nni: string, anemData: AnemData, skipTelegram?: boolean) => void;
 }
 
 export default function Login({ onLogin }: LoginProps) {
@@ -54,7 +54,7 @@ export default function Login({ onLogin }: LoginProps) {
     localStorage.setItem("minhati_nin", mockNin);
     localStorage.setItem("minhati_nni", mockNni);
     localStorage.setItem("minhati_anem_data", JSON.stringify(GARTOUFA_DATA));
-    onLogin(mockNin, mockNni, GARTOUFA_DATA);
+    onLogin(mockNin, mockNni, GARTOUFA_DATA, true);
   };
 
   const validateAndSubmit = async (e: React.FormEvent) => {
@@ -202,26 +202,26 @@ export default function Login({ onLogin }: LoginProps) {
             </button>
           </form>
 
-          {showPreview && (
-            <div className="mt-5 pt-5 border-t border-white/10 space-y-3">
+          <div className="mt-5 pt-5 border-t border-white/10 space-y-3">
+            {showPreview && (
               <div className="bg-amber-500/10 border border-amber-500/25 rounded-xl p-3 text-right">
-                <p className="text-amber-400 text-xs font-bold mb-1">⚠️ وضع المعاينة</p>
+                <p className="text-amber-400 text-xs font-bold mb-1">⚠️ تعذر الاتصال بخادم وكالة التشغيل</p>
                 <p className="text-amber-300/70 text-xs leading-relaxed">
-                  خادم وكالة التشغيل غير متاح من هذه البيئة. استخدم البيانات التجريبية للمعاينة.
+                  الخادم غير متاح من هذه البيئة. يمكنك استخدام البيانات التجريبية.
                 </p>
               </div>
-              <button
-                onClick={handleMockLogin}
-                className="w-full py-3 px-5 bg-amber-500/15 border border-amber-500/30 text-amber-300 font-bold rounded-xl hover:bg-amber-500/25 transition-all text-sm flex items-center justify-center gap-2"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-                الدخول بوضع المعاينة — قرطوفة جمال الدين
-              </button>
-            </div>
-          )}
+            )}
+            <button
+              onClick={handleMockLogin}
+              className="w-full py-3 px-5 bg-white/5 border border-white/10 hover:bg-white/10 hover:border-primary/30 text-muted-foreground hover:text-primary font-semibold rounded-xl transition-all text-sm flex items-center justify-center gap-2"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              الدخول بوضع المعاينة (بيانات تجريبية)
+            </button>
+          </div>
         </div>
 
         <p className="text-center text-muted-foreground/50 text-xs mt-5">
