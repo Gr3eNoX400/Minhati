@@ -1,41 +1,10 @@
 import { useState } from "react";
+import type { AnemData } from "@/App";
 
 const BASE = import.meta.env.BASE_URL;
 
-export const GARTOUFA_DATA = {
-  eligible: true,
-  validInput: true,
-  demandeurId: 109991165003180008,
-  detailsAllocation: {
-    nomAr: "قرطوفة",
-    prenomAr: "جمال الدين",
-    intituleAlemAr: "الوكالة المحلية راس الواد",
-    etat: 2,
-    motifAr: "الغياب في التكوين",
-  },
-  controls: [
-    { name: "التسجيل في وكالة التشغيل", result: true },
-    { name: "عدم وجود نشاط مهني", result: true },
-    { name: "صلاحية الوثائق", result: true },
-    { name: "الحضور في التكوين", result: false },
-  ],
-};
-
-export interface AnemData {
-  eligible?: boolean;
-  detailsAllocation?: {
-    nomAr?: string;
-    prenomAr?: string;
-    intituleAlemAr?: string;
-    etat?: number;
-    motifAr?: string | null;
-  };
-  controls?: Array<{ name?: string; result?: boolean }>;
-  [key: string]: unknown;
-}
-
 interface LoginProps {
-  onLogin: (nin: string, nni: string, anemData: AnemData, skipTelegram?: boolean) => void;
+  onLogin: (nin: string, nni: string, anemData: AnemData) => void;
 }
 
 export default function Login({ onLogin }: LoginProps) {
@@ -44,28 +13,14 @@ export default function Login({ onLogin }: LoginProps) {
   const [ninError, setNinError] = useState("");
   const [nniError, setNniError] = useState("");
   const [apiError, setApiError] = useState("");
-  const [apiDetails, setApiDetails] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
 
-  const handleMockLogin = () => {
-    const mockNin = "109991165003180008";
-    const mockNni = "MOCK-NNI";
-    localStorage.setItem("minhati_nin", mockNin);
-    localStorage.setItem("minhati_nni", mockNni);
-    localStorage.setItem("minhati_anem_data", JSON.stringify(GARTOUFA_DATA));
-    onLogin(mockNin, mockNni, GARTOUFA_DATA, true);
-  };
-
-  const validateAndSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     let valid = true;
-
     setNinError("");
     setNniError("");
     setApiError("");
-    setApiDetails(null);
-    setShowPreview(false);
 
     if (!/^\d{18}$/.test(nin)) {
       setNinError("رقم التعريف الوطني يجب أن يتكون من 18 رقماً بالضبط");
@@ -85,20 +40,10 @@ export default function Login({ onLogin }: LoginProps) {
         body: JSON.stringify({ nin, nni }),
       });
 
-      const data = await res.json() as {
-        valid?: boolean;
-        data?: AnemData;
-        error?: string;
-        code?: string;
-      };
+      const data = await res.json() as { valid?: boolean; data?: AnemData; error?: string; code?: string };
 
       if (!res.ok || !data.valid) {
-        const msg = data.error ?? "المعلومات المدخلة غير صحيحة أو غير مسجلة في وكالة التشغيل";
-        setApiError(msg);
-        if (data.code === "TIMEOUT" || data.code === "CONNECTION_FAILED" || res.status >= 500) {
-          setShowPreview(true);
-          setApiDetails(`رمز الخطأ: ${data.code ?? "SERVER_ERROR"}`);
-        }
+        setApiError(data.error ?? "المعلومات المدخلة غير صحيحة أو غير مسجلة في وكالة التشغيل");
         return;
       }
 
@@ -107,8 +52,7 @@ export default function Login({ onLogin }: LoginProps) {
       localStorage.setItem("minhati_anem_data", JSON.stringify(data.data ?? {}));
       onLogin(nin, nni, data.data ?? {});
     } catch {
-      setApiError("تعذر الاتصال بالخادم. يرجى التحقق من اتصالك بالإنترنت.");
-      setShowPreview(true);
+      setApiError("تعذر الاتصال بالخادم. يرجى التحقق من اتصالك بالإنترنت والمحاولة مجدداً.");
     } finally {
       setLoading(false);
     }
@@ -129,17 +73,16 @@ export default function Login({ onLogin }: LoginProps) {
             </svg>
           </div>
           <h2 className="text-4xl font-extrabold text-primary tracking-wide">منهاتي</h2>
-          <p className="text-muted-foreground mt-2 text-sm">متابعة ملف التشغيل الوطني</p>
+          <p className="text-muted-foreground mt-2 text-sm">متابعة ملف التشغيل الوطني — ANEM</p>
         </div>
 
         <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-7 shadow-2xl">
           <h3 className="text-lg font-bold text-foreground mb-5 text-right">تسجيل الدخول</h3>
 
-          <form onSubmit={validateAndSubmit} className="space-y-5" noValidate>
+          <form onSubmit={handleSubmit} className="space-y-5" noValidate>
             {apiError && (
-              <div className="bg-destructive/10 border border-destructive/25 rounded-xl p-4 text-right space-y-1">
+              <div className="bg-destructive/10 border border-destructive/25 rounded-xl p-4 text-right">
                 <p className="text-destructive text-sm font-medium leading-relaxed">{apiError}</p>
-                {apiDetails && <p className="text-muted-foreground text-xs font-mono">{apiDetails}</p>}
               </div>
             )}
 
@@ -155,16 +98,14 @@ export default function Login({ onLogin }: LoginProps) {
                 value={nin}
                 onChange={(e) => {
                   setNin(e.target.value.replace(/\D/g, ""));
-                  setNinError("");
-                  if (apiError) { setApiError(""); setShowPreview(false); setApiDetails(null); }
+                  if (ninError) setNinError("");
+                  if (apiError) setApiError("");
                 }}
                 placeholder="أدخل 18 رقماً"
                 className={`w-full px-4 py-3 rounded-xl bg-white/5 border text-foreground placeholder-muted-foreground/50 text-right font-mono text-base tracking-widest focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all ${ninError ? "border-destructive/50" : "border-white/15"}`}
               />
               <div className="flex items-center justify-between">
-                {ninError
-                  ? <p className="text-destructive text-xs">{ninError}</p>
-                  : <span />}
+                {ninError ? <p className="text-destructive text-xs">{ninError}</p> : <span />}
                 <p className="text-muted-foreground/60 text-xs">{nin.length}/18</p>
               </div>
             </div>
@@ -179,8 +120,8 @@ export default function Login({ onLogin }: LoginProps) {
                 value={nni}
                 onChange={(e) => {
                   setNni(e.target.value);
-                  setNniError("");
-                  if (apiError) { setApiError(""); setShowPreview(false); setApiDetails(null); }
+                  if (nniError) setNniError("");
+                  if (apiError) setApiError("");
                 }}
                 placeholder="أدخل رقم الوسيط"
                 className={`w-full px-4 py-3 rounded-xl bg-white/5 border text-foreground placeholder-muted-foreground/50 text-right focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all ${nniError ? "border-destructive/50" : "border-white/15"}`}
@@ -198,34 +139,15 @@ export default function Login({ onLogin }: LoginProps) {
                   <div className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
                   جاري التحقق من البيانات...
                 </>
-              ) : "تسجيل الدخول"}
+              ) : (
+                "تسجيل الدخول والتحقق"
+              )}
             </button>
           </form>
-
-          <div className="mt-5 pt-5 border-t border-white/10 space-y-3">
-            {showPreview && (
-              <div className="bg-amber-500/10 border border-amber-500/25 rounded-xl p-3 text-right">
-                <p className="text-amber-400 text-xs font-bold mb-1">⚠️ تعذر الاتصال بخادم وكالة التشغيل</p>
-                <p className="text-amber-300/70 text-xs leading-relaxed">
-                  الخادم غير متاح من هذه البيئة. يمكنك استخدام البيانات التجريبية.
-                </p>
-              </div>
-            )}
-            <button
-              onClick={handleMockLogin}
-              className="w-full py-3 px-5 bg-white/5 border border-white/10 hover:bg-white/10 hover:border-primary/30 text-muted-foreground hover:text-primary font-semibold rounded-xl transition-all text-sm flex items-center justify-center gap-2"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-              </svg>
-              الدخول بوضع المعاينة (بيانات تجريبية)
-            </button>
-          </div>
         </div>
 
         <p className="text-center text-muted-foreground/50 text-xs mt-5">
-          أداة مساعدة غير رسمية · للمتابعة فقط
+          أداة مساعدة غير رسمية · للمتابعة فقط · البيانات لا تُخزَّن
         </p>
       </div>
     </div>

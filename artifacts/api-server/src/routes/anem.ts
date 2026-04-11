@@ -5,8 +5,7 @@ import https from "https";
 const router = Router();
 
 const BROWSER_HEADERS = {
-  "User-Agent":
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
   "Referer": "https://minha.anem.dz/",
   "Origin": "https://minha.anem.dz",
   "Accept": "application/json, text/plain, */*",
@@ -15,6 +14,9 @@ const BROWSER_HEADERS = {
 };
 
 const httpsAgent = new https.Agent({ rejectUnauthorized: false });
+const ANEM_TIMEOUT = 30000;
+const ANEM_BASE = "https://ac-controle.anem.dz/AllocationChomage/api";
+const MINHA_BASE = "https://minha.anem.dz/api";
 
 router.post("/verify-anem", async (req, res) => {
   const { nin, nni } = req.body as { nin?: string; nni?: string };
@@ -23,31 +25,23 @@ router.post("/verify-anem", async (req, res) => {
     res.status(400).json({ error: "رقم التعريف الوطني يجب أن يكون 18 رقماً" });
     return;
   }
-
   if (!nni || !nni.trim()) {
     res.status(400).json({ error: "رقم الوسيط مطلوب" });
     return;
   }
 
-  const url = `https://ac-controle.anem.dz/AllocationChomage/api/validateCandidate/query`;
-
-  console.log(`[ANEM] Attempting request to: ${url}`);
-  console.log(`[ANEM] Params: wassitNumber=${nni}, identityDocNumber=${nin.slice(0, 4)}****`);
+  const url = `${ANEM_BASE}/validateCandidate/query`;
+  req.log?.info({ url, nni }, "[ANEM] Validating candidate");
 
   try {
     const response = await axios.get(url, {
-      params: {
-        wassitNumber: nni,
-        identityDocNumber: nin,
-      },
+      params: { wassitNumber: nni, identityDocNumber: nin },
       headers: BROWSER_HEADERS,
       httpsAgent,
-      timeout: 20000,
+      timeout: ANEM_TIMEOUT,
     });
 
-    console.log(`[ANEM] Response status: ${response.status}`);
-    console.log(`[ANEM] Response data:`, JSON.stringify(response.data));
-
+    req.log?.info({ status: response.status }, "[ANEM] Response received");
     const data = response.data as Record<string, unknown>;
 
     const hasData =
@@ -58,52 +52,94 @@ router.post("/verify-anem", async (req, res) => {
         data["detailsAllocation"] !== undefined);
 
     if (!hasData) {
-      console.log(`[ANEM] Response has no recognizable data fields`);
-      res.status(400).json({
-        error: "المعلومات المدخلة غير صحيحة أو غير مسجلة في وكالة التشغيل",
-      });
+      res.status(400).json({ error: "المعلومات المدخلة غير صحيحة أو غير مسجلة في وكالة التشغيل" });
       return;
     }
 
     res.json({ valid: true, data });
   } catch (err) {
     if (axios.isAxiosError(err)) {
-      console.log(`[ANEM] Axios error code: ${err.code}`);
-      console.log(`[ANEM] Axios error message: ${err.message}`);
-      if (err.response) {
-        console.log(`[ANEM] HTTP status: ${err.response.status}`);
-        console.log(`[ANEM] Response data:`, JSON.stringify(err.response.data));
-        console.log(`[ANEM] Response headers:`, JSON.stringify(err.response.headers));
-      } else {
-        console.log(`[ANEM] No HTTP response — likely network/firewall block or DNS failure`);
-      }
-
       if (err.response?.status === 404 || err.response?.status === 400) {
-        res.status(400).json({
-          error: "المعلومات المدخلة غير صحيحة أو غير مسجلة في وكالة التشغيل",
-        });
+        res.status(400).json({ error: "المعلومات المدخلة غير صحيحة أو غير مسجلة في وكالة التشغيل" });
         return;
       }
-
       if (err.code === "ECONNABORTED" || err.message.includes("timeout")) {
-        req.log?.warn("ANEM API timeout — server may be blocking this IP");
-        res.status(503).json({
-          error: "تعذر الاتصال بخادم وكالة التشغيل (انتهت مهلة الاتصال). يرجى المحاولة لاحقاً.",
-          code: "TIMEOUT",
-        });
+        req.log?.warn("[ANEM] Connection timeout");
+        res.status(503).json({ error: "انتهت مهلة الاتصال بخادم وكالة التشغيل. يرجى المحاولة لاحقاً.", code: "TIMEOUT" });
         return;
       }
-
-      req.log?.error({ err: err.message }, "ANEM API error");
-      res.status(502).json({
-        error: "تعذر الاتصال بخادم وكالة التشغيل. يرجى المحاولة لاحقاً.",
-        code: "CONNECTION_FAILED",
-      });
+      req.log?.error({ code: err.code, message: err.message }, "[ANEM] Connection failed");
+      res.status(502).json({ error: "تعذر الاتصال بخادم وكالة التشغيل. يرجى المحاولة لاحقاً.", code: "CONNECTION_FAILED" });
       return;
     }
-    console.log(`[ANEM] Unknown error:`, err);
-    req.log?.error({ err }, "Unexpected error in verify-anem");
-    res.status(502).json({ error: "حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى." });
+    req.log?.error({ err }, "[ANEM] Unexpected error");
+    res.status(500).json({ error: "حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى." });
+  }
+});
+
+router.post("/anem/renew-allocation", async (req, res) => {
+  const { nin, nni } = req.body as { nin?: string; nni?: string };
+
+  if (!nin || !nni) {
+    res.status(400).json({ error: "بيانات غير مكتملة" });
+    return;
+  }
+
+  const url = `${MINHA_BASE}/demandeur/renouvellement`;
+  req.log?.info({ url }, "[ANEM] Renewal request");
+
+  try {
+    const response = await axios.post(url, { nin, nni }, {
+      headers: { ...BROWSER_HEADERS, "Content-Type": "application/json" },
+      httpsAgent,
+      timeout: ANEM_TIMEOUT,
+    });
+    res.json({ success: true, data: response.data });
+  } catch (err) {
+    if (axios.isAxiosError(err)) {
+      if (err.response) {
+        res.status(err.response.status).json({ error: "رفض خادم وكالة التشغيل الطلب", details: err.response.data });
+        return;
+      }
+      res.status(503).json({ error: "تعذر الاتصال بخادم وكالة التشغيل", code: err.code ?? "CONNECTION_FAILED" });
+      return;
+    }
+    res.status(500).json({ error: "حدث خطأ غير متوقع" });
+  }
+});
+
+router.post("/anem/update-phone", async (req, res) => {
+  const { nin, nni, phone } = req.body as { nin?: string; nni?: string; phone?: string };
+
+  if (!nin || !nni || !phone) {
+    res.status(400).json({ error: "بيانات غير مكتملة" });
+    return;
+  }
+  if (!/^(05|06|07)\d{8}$/.test(phone)) {
+    res.status(400).json({ error: "رقم الهاتف غير صحيح. يجب أن يبدأ بـ 05، 06، أو 07 ويتكون من 10 أرقام." });
+    return;
+  }
+
+  const url = `${MINHA_BASE}/demandeur/updatePhone`;
+  req.log?.info({ url }, "[ANEM] Phone update request");
+
+  try {
+    const response = await axios.post(url, { nin, nni, newPhone: phone }, {
+      headers: { ...BROWSER_HEADERS, "Content-Type": "application/json" },
+      httpsAgent,
+      timeout: ANEM_TIMEOUT,
+    });
+    res.json({ success: true, data: response.data });
+  } catch (err) {
+    if (axios.isAxiosError(err)) {
+      if (err.response) {
+        res.status(err.response.status).json({ error: "رفض خادم وكالة التشغيل الطلب", details: err.response.data });
+        return;
+      }
+      res.status(503).json({ error: "تعذر الاتصال بخادم وكالة التشغيل", code: err.code ?? "CONNECTION_FAILED" });
+      return;
+    }
+    res.status(500).json({ error: "حدث خطأ غير متوقع" });
   }
 });
 
